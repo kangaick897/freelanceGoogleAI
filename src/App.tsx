@@ -27,6 +27,7 @@ export default function App() {
       setSession(session);
       if (session?.user) {
         setUser({ id: session.user.id, email: session.user.email });
+        useStore.getState().fetchData();
       }
       setIsInitializing(false);
     });
@@ -38,6 +39,7 @@ export default function App() {
       setSession(session);
       if (session?.user) {
         setUser({ id: session.user.id, email: session.user.email });
+        useStore.getState().fetchData();
       } else {
         setUser({ id: undefined, email: undefined });
       }

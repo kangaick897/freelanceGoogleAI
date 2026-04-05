@@ -4,7 +4,6 @@ import { supabase } from '@/lib/supabase';
 import { Mail, Lock, Loader2, AlertCircle } from 'lucide-react';
 
 export function Auth() {
-  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -16,22 +15,11 @@ export function Auth() {
     setError(null);
 
     try {
-      if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-        if (error) throw error;
-        // Optional: Show success message for signup if email confirmation is required
-        setError('Registration successful! You can now log in.');
-        setIsLogin(true);
-      }
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
     } catch (err: any) {
       if (err.message === 'Failed to fetch') {
         setError('Network Error: Failed to connect to Supabase. Please check if your VITE_SUPABASE_URL in Secrets is correct, active, and has no extra spaces.');
@@ -63,19 +51,9 @@ export function Auth() {
         </div>
 
         <div className="glass-panel rounded-3xl p-6 shadow-xl">
-          <div className="flex bg-white/50 rounded-xl p-1 mb-6">
-            <button
-              onClick={() => { setIsLogin(true); setError(null); }}
-              className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${isLogin ? 'bg-white text-primary shadow-sm' : 'text-slate-500'}`}
-            >
-              Sign In
-            </button>
-            <button
-              onClick={() => { setIsLogin(false); setError(null); }}
-              className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${!isLogin ? 'bg-white text-primary shadow-sm' : 'text-slate-500'}`}
-            >
-              Sign Up
-            </button>
+          <div className="text-center mb-6">
+            <h2 className="text-lg font-bold text-slate-800">Welcome Back</h2>
+            <p className="text-sm text-slate-500">Sign in to continue</p>
           </div>
 
           <AnimatePresence mode="wait">
@@ -133,7 +111,7 @@ export function Auth() {
               disabled={loading}
               className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-primary/30 active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-6 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              {loading ? <Loader2 size={20} className="animate-spin" /> : (isLogin ? 'Sign In' : 'Create Account')}
+              {loading ? <Loader2 size={20} className="animate-spin" /> : 'Sign In'}
             </button>
           </form>
         </div>

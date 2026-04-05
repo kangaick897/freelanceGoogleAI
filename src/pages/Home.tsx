@@ -1,11 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
 import { 
   format, isSameDay, startOfMonth, endOfMonth, startOfWeek, endOfWeek, 
   eachDayOfInterval, isSameMonth, addMonths, subMonths, isToday 
 } from 'date-fns';
 import { Calendar as CalendarIcon, Clock, CheckCircle2, PlayCircle, ChevronLeft, ChevronRight, X } from 'lucide-react';
+
+function AnimatedNumber({ value }: { value: number }) {
+  const count = useMotionValue(0);
+  const rounded = useTransform(count, (latest) => Math.round(latest));
+
+  useEffect(() => {
+    const controls = animate(count, value, { duration: 1.2, ease: "easeOut" });
+    return controls.stop;
+  }, [value, count]);
+
+  return <motion.span>{rounded}</motion.span>;
+}
 
 export function Home() {
   const { user, tasks } = useStore();
@@ -64,17 +76,17 @@ export function Home() {
       <div className="grid grid-cols-3 gap-3">
         <div className="glass rounded-2xl p-4 flex flex-col items-center justify-center text-center">
           <CalendarIcon className="text-blue-500 mb-2" size={24} />
-          <span className="text-2xl font-bold text-slate-800">{upcomingCount}</span>
+          <span className="text-2xl font-bold text-slate-800"><AnimatedNumber value={upcomingCount} /></span>
           <span className="text-xs text-slate-500 font-medium">Upcoming</span>
         </div>
         <div className="glass rounded-2xl p-4 flex flex-col items-center justify-center text-center">
           <Clock className="text-orange-500 mb-2" size={24} />
-          <span className="text-2xl font-bold text-slate-800">{progressCount}</span>
+          <span className="text-2xl font-bold text-slate-800"><AnimatedNumber value={progressCount} /></span>
           <span className="text-xs text-slate-500 font-medium">Progress</span>
         </div>
         <div className="glass rounded-2xl p-4 flex flex-col items-center justify-center text-center">
           <CheckCircle2 className="text-green-500 mb-2" size={24} />
-          <span className="text-2xl font-bold text-slate-800">{successCount}</span>
+          <span className="text-2xl font-bold text-slate-800"><AnimatedNumber value={successCount} /></span>
           <span className="text-xs text-slate-500 font-medium">Success</span>
         </div>
       </div>
@@ -132,7 +144,7 @@ export function Home() {
                 
                 {/* Task Indicators */}
                 {hasTasks && (
-                  <div className="absolute bottom-1.5 flex gap-0.5">
+                  <div className="absolute bottom-1 flex gap-0.5">
                     <div className={`w-1.5 h-1.5 rounded-full ${
                       isSelected ? 'bg-white' : 
                       allSuccess ? 'bg-green-500' : 

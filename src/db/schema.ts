@@ -25,11 +25,11 @@ export const categories = pgTable('categories', {
 export const tasks = pgTable('tasks', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  title: text('title').notNull(),
+  taskName: text('task_name').notNull(),
   clientName: text('client_name').notNull(),
   deadline: timestamp('deadline').notNull(),
-  fullPrice: numeric('full_price').notNull(),
-  depositPrice: numeric('deposit_price').default('0').notNull(),
+  price: numeric('price').notNull(),
+  paidAmount: numeric('paid_amount').default('0').notNull(),
   status: statusEnum('status').default('UPCOMING').notNull(),
   categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
   notes: text('notes'), // สำหรับจดรายละเอียดเพิ่มเติมหรือลิงก์บรีฟงาน

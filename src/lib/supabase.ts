@@ -1,14 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Use environment variables, but provide a dummy URL fallback to prevent 
-// the app from crashing completely if the user hasn't set up the secrets yet.
-let supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
-let supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
+let supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key';
 
-// Validate URL to prevent crash if user pasted placeholder text like "YOUR_SUPABASE_PROJECT_URL"
-if (!supabaseUrl.startsWith('http://') && !supabaseUrl.startsWith('https://')) {
+// Ensure the URL is a valid HTTP/HTTPS URL to prevent app crashes
+if (supabaseUrl.startsWith('postgresql://')) {
+  const match = supabaseUrl.match(/postgres\.([^:]+):/);
+  supabaseUrl = match && match[1] ? `https://${match[1]}.supabase.co` : 'https://duwcpxxqlbqvqyjakuik.supabase.co';
+} else if (!supabaseUrl.startsWith('http://') && !supabaseUrl.startsWith('https://')) {
   supabaseUrl = 'https://placeholder-project.supabase.co';
-  supabaseAnonKey = 'placeholder-key';
+}
+
+if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+  console.error('Missing Supabase environment variables. Please check your .env.local file or AI Studio Secrets.');
 }
 
 // Initialize Supabase client

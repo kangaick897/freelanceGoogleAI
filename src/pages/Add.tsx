@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2 } from 'lucide-react';
 
 export function Add() {
@@ -49,31 +49,15 @@ export function Add() {
     }, 2000);
   };
 
-  if (isSuccess) {
-    return (
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="flex flex-col items-center justify-center h-[60vh] text-center"
-      >
-        <div className="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-green-500/20">
-          <CheckCircle2 size={40} />
-        </div>
-        <h2 className="text-2xl font-bold text-slate-800 mb-2">บันทึกคิวงานสำเร็จ!</h2>
-        <p className="text-slate-500">ระบบได้เพิ่มงานลงในคิวเรียบร้อยแล้ว</p>
-      </motion.div>
-    );
-  }
-
   return (
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="pb-24 space-y-6"
+      className="pb-24 space-y-6 relative"
     >
       <h1 className="text-2xl font-bold text-slate-800">New Task</h1>
 
-      <form onSubmit={handleSubmit} className="glass rounded-3xl p-6 space-y-5">
+      <form onSubmit={handleSubmit} className="glass rounded-3xl p-6 space-y-5 relative z-10">
         
         <div className="space-y-1.5">
           <label className="text-sm font-bold text-slate-700">ชื่อลูกค้า</label>
@@ -179,6 +163,30 @@ export function Add() {
           บันทึกคิวงาน
         </button>
       </form>
+
+      <AnimatePresence>
+        {isSuccess && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center"
+            >
+              <div className="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-green-500/20">
+                <CheckCircle2 size={40} />
+              </div>
+              <h2 className="text-2xl font-bold text-slate-800 mb-2">บันทึกคิวงานสำเร็จ!</h2>
+              <p className="text-slate-500">ระบบได้เพิ่มงานลงในคิวเรียบร้อยแล้ว</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

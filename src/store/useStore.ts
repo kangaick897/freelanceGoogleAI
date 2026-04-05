@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Session } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 
 export type TaskStatus = 'UPCOMING' | 'IN_PROGRESS' | 'SUCCESS';
 
@@ -29,7 +30,7 @@ interface AppState {
   setSession: (session: Session | null) => void;
 
   theme: ThemeColor;
-  setTheme: (theme: ThemeColor) => void;
+  setTheme: (theme: ThemeColor) => Promise<void>;
   
   user: {
     id?: string;
@@ -37,16 +38,19 @@ interface AppState {
     name: string;
     avatarUrl: string;
   };
-  setUser: (user: Partial<AppState['user']>) => void;
+  setUser: (user: Partial<AppState['user']>) => Promise<void>;
 
   categories: Category[];
-  addCategory: (category: Category) => void;
-  removeCategory: (id: string) => void;
+  addCategory: (category: Category) => Promise<void>;
+  removeCategory: (id: string) => Promise<void>;
 
   tasks: Task[];
-  addTask: (task: Task) => void;
-  updateTaskStatus: (id: string, status: TaskStatus) => void;
-  updateTaskPaidAmount: (id: string, paidAmount: number) => void;
+  addTask: (task: Task) => Promise<void>;
+  updateTaskStatus: (id: string, status: TaskStatus) => Promise<void>;
+  updateTaskPaidAmount: (id: string, paidAmount: number) => Promise<void>;
+
+  fetchData: () => Promise<void>;
+  isDataLoaded: boolean;
 }
 
 const defaultCategories: Category[] = [
@@ -55,69 +59,157 @@ const defaultCategories: Category[] = [
   { id: '3', name: 'Coding', color: 'bg-blue-500' },
 ];
 
-const mockTasks: Task[] = [
-  {
-    id: '1',
-    clientName: 'คุณเอ',
-    taskName: 'ออกแบบโลโก้ร้านกาแฟ',
-    deadline: new Date(Date.now() + 86400000 * 2).toISOString(), // +2 days
-    price: 5000,
-    paidAmount: 2500,
-    status: 'UPCOMING',
-    categoryId: '1',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    clientName: 'คุณบี',
-    taskName: 'ตัดต่อคลิป Vlog',
-    deadline: new Date(Date.now() + 86400000 * 1).toISOString(), // +1 day
-    price: 8000,
-    paidAmount: 4000,
-    status: 'IN_PROGRESS',
-    categoryId: '2',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: '3',
-    clientName: 'บริษัท C',
-    taskName: 'ทำเว็บ Landing Page',
-    deadline: new Date(Date.now() - 86400000 * 1).toISOString(), // -1 day
-    price: 15000,
-    paidAmount: 15000,
-    status: 'SUCCESS',
-    categoryId: '3',
-    createdAt: new Date().toISOString(),
-  }
-];
-
 export const useStore = create<AppState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       session: null,
       setSession: (session) => set({ session }),
 
       theme: 'blue',
-      setTheme: (theme) => set({ theme }),
+      setTheme: async (theme) => {
+        set({ theme });
+        const userId = get().session?.user.id;
+        if (userId) {
+          await supabase.from('users').update({ theme_color: theme }).eq('id', userId);
+        }
+      },
       
       user: {
         name: 'Freelancer',
         avatarUrl: 'https://api.dicebear.com/7.x/notionists/svg?seed=Felix',
       },
-      setUser: (user) => set((state) => ({ user: { ...state.user, ...user } })),
+      setUser: async (userUpdate) => {
+        set((state) => ({ user: { ...state.user, ...userUpdate } }));
+        const userId = get().session?.user.id;
+        if (userId && (userUpdate.name || userUpdate.avatarUrl)) {
+          const currentUser = get().user;
+          await supabase.from('users').upsert({ 
+            id: userId, 
+            full_name: currentUser.name, 
+            avatar_url: currentUser.avatarUrl 
+          });
+        }
+      },
 
-      categories: defaultCategories,
-      addCategory: (category) => set((state) => ({ categories: [...state.categories, category] })),
-      removeCategory: (id) => set((state) => ({ categories: state.categories.filter(c => c.id !== id) })),
+      categories: [],
+      addCategory: async (category) => {
+        set((state) => ({ categories: [...state.categories, category] }));
+        const userId = get().session?.user.id;
+        if (userId) {
+          await supabase.from('categories').insert({
+            id: category.id,
+            user_id: userId,
+            name: category.name,
+            color: category.color
+          });
+        }
+      },
+      removeCategory: async (id) => {
+        set((state) => ({ categories: state.categories.filter(c => c.id !== id) }));
+        const userId = get().session?.user.id;
+        if (userId) {
+          await supabase.from('categories').delete().eq('id', id);
+        }
+      },
 
-      tasks: mockTasks,
-      addTask: (task) => set((state) => ({ tasks: [...state.tasks, task] })),
-      updateTaskStatus: (id, status) => set((state) => ({
-        tasks: state.tasks.map(t => t.id === id ? { ...t, status } : t)
-      })),
-      updateTaskPaidAmount: (id, paidAmount) => set((state) => ({
-        tasks: state.tasks.map(t => t.id === id ? { ...t, paidAmount } : t)
-      })),
+      tasks: [],
+      addTask: async (task) => {
+        set((state) => ({ tasks: [...state.tasks, task] }));
+        const userId = get().session?.user.id;
+        if (userId) {
+          await supabase.from('tasks').insert({
+            id: task.id,
+            user_id: userId,
+            task_name: task.taskName,
+            client_name: task.clientName,
+            deadline: task.deadline,
+            price: task.price,
+            paid_amount: task.paidAmount,
+            status: task.status,
+            category_id: task.categoryId,
+            created_at: task.createdAt
+          });
+        }
+      },
+      updateTaskStatus: async (id, status) => {
+        set((state) => ({
+          tasks: state.tasks.map(t => t.id === id ? { ...t, status } : t)
+        }));
+        const userId = get().session?.user.id;
+        if (userId) {
+          await supabase.from('tasks').update({ status }).eq('id', id);
+        }
+      },
+      updateTaskPaidAmount: async (id, paidAmount) => {
+        set((state) => ({
+          tasks: state.tasks.map(t => t.id === id ? { ...t, paidAmount } : t)
+        }));
+        const userId = get().session?.user.id;
+        if (userId) {
+          await supabase.from('tasks').update({ paid_amount: paidAmount }).eq('id', id);
+        }
+      },
+
+      isDataLoaded: false,
+      fetchData: async () => {
+        const userId = get().session?.user.id;
+        if (!userId) return;
+
+        try {
+          // Fetch user profile
+          const { data: userData } = await supabase.from('users').select('*').eq('id', userId).single();
+          if (userData) {
+            set((state) => ({
+              user: { ...state.user, name: userData.full_name, avatarUrl: userData.avatar_url },
+              theme: userData.theme_color as ThemeColor
+            }));
+          } else {
+            // Create default user profile if not exists
+            const defaultUser = get().user;
+            await supabase.from('users').insert({
+              id: userId,
+              full_name: defaultUser.name,
+              avatar_url: defaultUser.avatarUrl,
+              theme_color: get().theme
+            });
+          }
+
+          // Fetch categories
+          const { data: categoriesData } = await supabase.from('categories').select('*').eq('user_id', userId);
+          if (categoriesData && categoriesData.length > 0) {
+            set({ categories: categoriesData.map(c => ({ id: c.id, name: c.name, color: c.color })) });
+          } else {
+            // Insert default categories if none exist
+            const defaults = defaultCategories;
+            set({ categories: defaults });
+            await supabase.from('categories').insert(
+              defaults.map(c => ({ id: c.id, user_id: userId, name: c.name, color: c.color }))
+            );
+          }
+
+          // Fetch tasks
+          const { data: tasksData } = await supabase.from('tasks').select('*').eq('user_id', userId);
+          if (tasksData) {
+            set({
+              tasks: tasksData.map(t => ({
+                id: t.id,
+                taskName: t.task_name,
+                clientName: t.client_name,
+                deadline: t.deadline,
+                price: Number(t.price),
+                paidAmount: Number(t.paid_amount),
+                status: t.status as TaskStatus,
+                categoryId: t.category_id,
+                createdAt: t.created_at
+              }))
+            });
+          }
+
+          set({ isDataLoaded: true });
+        } catch (error) {
+          console.error('Error fetching data:', error);
+        }
+      }
     }),
     {
       name: 'freelance-storage',

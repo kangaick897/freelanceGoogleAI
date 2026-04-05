@@ -7,7 +7,9 @@ import { X, CheckCircle2, Plus } from 'lucide-react';
 export function Dashboard() {
   const { tasks, categories, updateTaskPaidAmount } = useStore();
   const [chartType, setChartType] = useState<'donut' | 'bar'>('donut');
-  const [monthFilter, setMonthFilter] = useState('this_month');
+  const now = new Date();
+  const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const [monthFilter, setMonthFilter] = useState(currentMonthStr);
   
   // Modals state
   const [showPendingSheet, setShowPendingSheet] = useState(false);
@@ -15,20 +17,20 @@ export function Dashboard() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [addAmount, setAddAmount] = useState('');
 
-  // Time filtering
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
-
-  const isThisMonth = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
-  };
+  // Generate available months from tasks
+  const monthsSet = new Set([currentMonthStr, ...tasks.map(t => {
+    const d = new Date(t.createdAt);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  })]);
+  const availableMonths = Array.from(monthsSet).sort().reverse();
 
   // Calculations
-  const filteredTasks = monthFilter === 'this_month' 
-    ? tasks.filter(t => isThisMonth(t.createdAt))
-    : tasks;
+  const filteredTasks = monthFilter === 'all' 
+    ? tasks
+    : tasks.filter(t => {
+        const d = new Date(t.createdAt);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === monthFilter;
+      });
 
   // Collect: Sum of all paidAmount (filtered by time)
   const collectedTasks = filteredTasks.filter(t => t.paidAmount > 0);
@@ -65,14 +67,15 @@ export function Dashboard() {
   tasks.forEach(task => {
     const date = new Date(task.deadline);
     
-    // If filtering by this month, only include tasks with deadline in this month
-    if (monthFilter === 'this_month' && !isThisMonth(task.deadline)) return;
+    // If filtering by a specific month, only include tasks with deadline in that month
+    const taskMonthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    if (monthFilter !== 'all' && taskMonthStr !== monthFilter) return;
 
     let key = '';
     let name = '';
     let sortKey = 0;
 
-    if (monthFilter === 'this_month') {
+    if (monthFilter !== 'all') {
       // Group by Week of the month
       const weekNum = Math.ceil(date.getDate() / 7);
       key = `W${weekNum}`;
@@ -130,8 +133,16 @@ export function Dashboard() {
           onChange={(e) => setMonthFilter(e.target.value)}
           className="glass px-3 py-1.5 rounded-xl text-sm font-medium text-slate-700 outline-none"
         >
-          <option value="this_month">This Month</option>
           <option value="all">All Time</option>
+          {availableMonths.map(m => {
+            const [year, month] = m.split('-');
+            const date = new Date(Number(year), Number(month) - 1);
+            return (
+              <option key={m} value={m}>
+                {date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+              </option>
+            );
+          })}
         </select>
       </div>
 
@@ -247,14 +258,14 @@ export function Dashboard() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowPendingSheet(false)}
-              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40"
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[50]"
             />
             <motion.div 
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-x-0 bottom-0 bg-white/90 backdrop-blur-xl rounded-t-3xl z-50 p-6 max-h-[80vh] overflow-y-auto shadow-2xl"
+              className="fixed inset-x-0 bottom-0 bg-white/90 backdrop-blur-xl rounded-t-3xl z-[60] p-6 min-h-[50vh] max-h-[85vh] overflow-y-auto shadow-2xl pb-24"
             >
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-slate-800">Pending Payments</h2>
@@ -303,17 +314,17 @@ export function Dashboard() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowCollectSheet(false)}
-              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40"
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[50]"
             />
             <motion.div 
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-x-0 bottom-0 bg-white/90 backdrop-blur-xl rounded-t-3xl z-50 p-6 max-h-[80vh] overflow-y-auto shadow-2xl"
+              className="fixed inset-x-0 bottom-0 bg-white/90 backdrop-blur-xl rounded-t-3xl z-[60] p-6 min-h-[50vh] max-h-[85vh] overflow-y-auto shadow-2xl pb-24"
             >
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-slate-800">Collected ({monthFilter === 'all' ? 'All Time' : 'This Month'})</h2>
+                <h2 className="text-xl font-bold text-slate-800">Collected</h2>
                 <button onClick={() => setShowCollectSheet(false)} className="p-2 bg-slate-100 rounded-full text-slate-500">
                   <X size={20} />
                 </button>
@@ -356,7 +367,7 @@ export function Dashboard() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4"
               onClick={() => setSelectedTask(null)}
             >
               <motion.div 
