@@ -17,11 +17,21 @@ export function Add() {
     categoryId: categories[0]?.id || '',
   });
 
+  const createUUID = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     const newTask = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: createUUID(),
       clientName: formData.clientName,
       taskName: formData.taskName,
       deadline: new Date(formData.deadline).toISOString(),

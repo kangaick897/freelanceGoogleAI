@@ -54,9 +54,9 @@ interface AppState {
 }
 
 const defaultCategories: Category[] = [
-  { id: '1', name: 'Design', color: 'bg-pink-500' },
-  { id: '2', name: 'Video Edit', color: 'bg-purple-500' },
-  { id: '3', name: 'Coding', color: 'bg-blue-500' },
+  { id: '11111111-1111-4111-a111-111111111111', name: 'Design', color: 'bg-pink-500' },
+  { id: '22222222-2222-4222-a222-222222222222', name: 'Video Edit', color: 'bg-purple-500' },
+  { id: '33333333-3333-4333-a333-333333333333', name: 'Coding', color: 'bg-blue-500' },
 ];
 
 export const useStore = create<AppState>()(
@@ -96,12 +96,13 @@ export const useStore = create<AppState>()(
         set((state) => ({ categories: [...state.categories, category] }));
         const userId = get().session?.user.id;
         if (userId) {
-          await supabase.from('categories').insert({
+          const { error } = await supabase.from('categories').insert({
             id: category.id,
             user_id: userId,
             name: category.name,
             color: category.color
           });
+          if (error) console.error('Error inserting category:', error);
         }
       },
       removeCategory: async (id) => {
@@ -117,7 +118,7 @@ export const useStore = create<AppState>()(
         set((state) => ({ tasks: [...state.tasks, task] }));
         const userId = get().session?.user.id;
         if (userId) {
-          await supabase.from('tasks').insert({
+          const { error } = await supabase.from('tasks').insert({
             id: task.id,
             user_id: userId,
             task_name: task.taskName,
@@ -129,6 +130,7 @@ export const useStore = create<AppState>()(
             category_id: task.categoryId,
             created_at: task.createdAt
           });
+          if (error) console.error('Error inserting task:', error);
         }
       },
       updateTaskStatus: async (id, status) => {
@@ -182,9 +184,14 @@ export const useStore = create<AppState>()(
             // Insert default categories if none exist
             const defaults = defaultCategories;
             set({ categories: defaults });
-            await supabase.from('categories').insert(
-              defaults.map(c => ({ id: c.id, user_id: userId, name: c.name, color: c.color }))
-            );
+            try {
+              const { error: catErr } = await supabase.from('categories').insert(
+                defaults.map(c => ({ id: c.id, user_id: userId, name: c.name, color: c.color }))
+              );
+              if (catErr) console.error('Error inserting default categories:', catErr);
+            } catch (err) {
+               console.error('Exception inserting default categories:', err);
+            }
           }
 
           // Fetch tasks
