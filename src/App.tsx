@@ -15,9 +15,9 @@ export default function App() {
   const [isInitializing, setIsInitializing] = useState(true);
   const { theme, session, setSession, setUser } = useStore();
 
-  // Apply theme class to body
+  // Apply theme class to html element
   useEffect(() => {
-    document.body.className = `theme-${theme}`;
+    document.documentElement.className = `theme-${theme}`;
   }, [theme]);
 
   // Supabase Auth Listener

@@ -1,16 +1,21 @@
+import { useState } from 'react';
 import { useStore } from '@/store/useStore';
-import { motion } from 'framer-motion';
-import { format, isSameDay } from 'date-fns';
-import { Calendar, Clock, CheckCircle2, PlayCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  format, isSameDay, startOfMonth, endOfMonth, startOfWeek, endOfWeek, 
+  eachDayOfInterval, isSameMonth, addMonths, subMonths, isToday 
+} from 'date-fns';
+import { Calendar as CalendarIcon, Clock, CheckCircle2, PlayCircle, ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 export function Home() {
   const { user, tasks } = useStore();
   
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
+  
   const upcomingCount = tasks.filter(t => t.status === 'UPCOMING').length;
   const progressCount = tasks.filter(t => t.status === 'IN_PROGRESS').length;
   const successCount = tasks.filter(t => t.status === 'SUCCESS').length;
-
-  const recentTasks = tasks.filter(t => t.status === 'IN_PROGRESS').slice(0, 3);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -18,6 +23,23 @@ export function Home() {
     if (hour < 18) return 'Good afternoon';
     return 'Good evening';
   };
+
+  // Calendar Logic
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(monthStart);
+  const startDate = startOfWeek(monthStart);
+  const endDate = endOfWeek(monthEnd);
+  
+  const calendarDays = eachDayOfInterval({ start: startDate, end: endDate });
+  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+  const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
+
+  // Tasks for selected date
+  const selectedDateTasks = selectedDate 
+    ? tasks.filter(t => isSameDay(new Date(t.deadline), selectedDate))
+    : [];
 
   return (
     <motion.div 
@@ -34,14 +56,14 @@ export function Home() {
         <img 
           src={user.avatarUrl} 
           alt="Profile" 
-          className="w-12 h-12 rounded-full border-2 border-white shadow-sm bg-white"
+          className="w-12 h-12 rounded-full border-2 border-white shadow-sm bg-white object-cover"
         />
       </div>
 
       {/* Mini-Stats */}
       <div className="grid grid-cols-3 gap-3">
         <div className="glass rounded-2xl p-4 flex flex-col items-center justify-center text-center">
-          <Calendar className="text-blue-500 mb-2" size={24} />
+          <CalendarIcon className="text-blue-500 mb-2" size={24} />
           <span className="text-2xl font-bold text-slate-800">{upcomingCount}</span>
           <span className="text-xs text-slate-500 font-medium">Upcoming</span>
         </div>
@@ -57,64 +79,129 @@ export function Home() {
         </div>
       </div>
 
-      {/* Interactive Calendar (Simplified for prototype) */}
+      {/* Interactive Monthly Calendar */}
       <div className="glass rounded-3xl p-5">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold text-slate-800">Schedule</h2>
-          <span className="text-sm text-primary font-medium">{format(new Date(), 'MMMM yyyy')}</span>
+          <h2 className="text-lg font-bold text-slate-800">
+            {format(currentMonth, 'MMMM yyyy')}
+          </h2>
+          <div className="flex gap-2">
+            <button onClick={prevMonth} className="p-1.5 bg-white/50 rounded-full text-slate-600 hover:bg-white transition-colors">
+              <ChevronLeft size={20} />
+            </button>
+            <button onClick={nextMonth} className="p-1.5 bg-white/50 rounded-full text-slate-600 hover:bg-white transition-colors">
+              <ChevronRight size={20} />
+            </button>
+          </div>
         </div>
         
-        {/* Horizontal scroll of days */}
-        <div className="flex gap-3 overflow-x-auto pb-2 snap-x hide-scrollbar">
-          {Array.from({ length: 14 }).map((_, i) => {
-            const date = new Date();
-            date.setDate(date.getDate() + i - 3); // Start from 3 days ago
-            const isToday = isSameDay(date, new Date());
-            const hasDeadline = tasks.some(t => isSameDay(new Date(t.deadline), date) && t.status !== 'SUCCESS');
+        {/* Weekday Headers */}
+        <div className="grid grid-cols-7 mb-2">
+          {weekDays.map(day => (
+            <div key={day} className="text-center text-xs font-bold text-slate-400">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar Grid */}
+        <div className="grid grid-cols-7 gap-1">
+          {calendarDays.map((day, i) => {
+            const isCurrentMonth = isSameMonth(day, monthStart);
+            const isSelected = selectedDate && isSameDay(day, selectedDate);
+            const isTodayDate = isToday(day);
+            
+            // Check if there are tasks on this day
+            const dayTasks = tasks.filter(t => isSameDay(new Date(t.deadline), day));
+            const hasTasks = dayTasks.length > 0;
+            const hasInProgress = dayTasks.some(t => t.status === 'IN_PROGRESS');
+            const allSuccess = hasTasks && dayTasks.every(t => t.status === 'SUCCESS');
 
             return (
-              <div 
-                key={i} 
-                className={`snap-center flex flex-col items-center justify-center min-w-[3.5rem] h-16 rounded-2xl relative ${isToday ? 'bg-primary text-white shadow-md' : 'bg-white/40 text-slate-600'}`}
+              <button
+                key={i}
+                onClick={() => setSelectedDate(day)}
+                className={`
+                  relative aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-medium transition-all
+                  ${!isCurrentMonth ? 'text-slate-300' : 'text-slate-700'}
+                  ${isSelected ? 'bg-primary text-white shadow-md scale-105 z-10' : 'hover:bg-white/60'}
+                  ${isTodayDate && !isSelected ? 'border-2 border-primary text-primary' : ''}
+                `}
               >
-                <span className="text-xs font-medium opacity-80">{format(date, 'EEE')}</span>
-                <span className="text-lg font-bold">{format(date, 'd')}</span>
-                {hasDeadline && (
-                  <div className={`absolute bottom-1.5 w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : 'bg-red-500'}`} />
+                <span>{format(day, 'd')}</span>
+                
+                {/* Task Indicators */}
+                {hasTasks && (
+                  <div className="absolute bottom-1.5 flex gap-0.5">
+                    <div className={`w-1.5 h-1.5 rounded-full ${
+                      isSelected ? 'bg-white' : 
+                      allSuccess ? 'bg-green-500' : 
+                      hasInProgress ? 'bg-orange-500' : 'bg-blue-500'
+                    }`} />
+                  </div>
                 )}
-              </div>
+              </button>
             );
           })}
         </div>
       </div>
 
-      {/* Recent Tasks */}
-      <div>
-        <h2 className="text-lg font-bold text-slate-800 mb-4">In Progress</h2>
-        {recentTasks.length === 0 ? (
-          <div className="glass rounded-2xl p-6 text-center text-slate-500">
-            No tasks in progress. Time to relax! ☕
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {recentTasks.map(task => (
-              <div key={task.id} className="glass rounded-2xl p-4 flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-500 shrink-0">
-                  <PlayCircle size={20} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-slate-800 truncate">{task.taskName}</h3>
-                  <p className="text-sm text-slate-500 truncate">{task.clientName}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-xs font-medium text-slate-400">Due</p>
-                  <p className="text-sm font-bold text-slate-700">{format(new Date(task.deadline), 'dd MMM')}</p>
-                </div>
+      {/* Selected Date Tasks */}
+      <AnimatePresence mode="wait">
+        {selectedDate && (
+          <motion.div 
+            key={selectedDate.toISOString()}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-slate-800">
+                Tasks for {format(selectedDate, 'dd MMM yyyy')}
+              </h2>
+              {isToday(selectedDate) && (
+                <span className="text-xs font-bold bg-primary/10 text-primary px-2 py-1 rounded-md">Today</span>
+              )}
+            </div>
+            
+            {selectedDateTasks.length === 0 ? (
+              <div className="glass rounded-2xl p-6 text-center text-slate-500">
+                No tasks due on this day. Free time! 🏖️
               </div>
-            ))}
-          </div>
+            ) : (
+              <div className="space-y-3">
+                {selectedDateTasks.map(task => (
+                  <div key={task.id} className="glass rounded-2xl p-4 flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                      task.status === 'SUCCESS' ? 'bg-green-100 text-green-500' :
+                      task.status === 'IN_PROGRESS' ? 'bg-orange-100 text-orange-500' :
+                      'bg-blue-100 text-blue-500'
+                    }`}>
+                      {task.status === 'SUCCESS' ? <CheckCircle2 size={20} /> :
+                       task.status === 'IN_PROGRESS' ? <PlayCircle size={20} /> :
+                       <CalendarIcon size={20} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-slate-800 truncate">{task.taskName}</h3>
+                      <p className="text-sm text-slate-500 truncate">{task.clientName}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className={`text-xs font-bold px-2 py-1 rounded-md ${
+                        task.status === 'SUCCESS' ? 'bg-green-100 text-green-700' :
+                        task.status === 'IN_PROGRESS' ? 'bg-orange-100 text-orange-700' :
+                        'bg-blue-100 text-blue-700'
+                      }`}>
+                        {task.status === 'SUCCESS' ? 'Done' :
+                         task.status === 'IN_PROGRESS' ? 'Doing' : 'Upcoming'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
     </motion.div>
   );
 }

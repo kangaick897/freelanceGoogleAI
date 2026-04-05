@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore, Task } from '@/store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts';
 import { X, CheckCircle2, Plus } from 'lucide-react';
 
 export function Dashboard() {
@@ -58,6 +58,43 @@ export function Dashboard() {
       color: colorMap[cat.color] || '#94a3b8'
     };
   }).filter(d => d.value > 0);
+
+  // Bar Chart Data (Trend based on Deadline)
+  const barChartDataMap = new Map<string, { name: string; collected: number; pending: number; sortKey: number }>();
+
+  tasks.forEach(task => {
+    const date = new Date(task.deadline);
+    
+    // If filtering by this month, only include tasks with deadline in this month
+    if (monthFilter === 'this_month' && !isThisMonth(task.deadline)) return;
+
+    let key = '';
+    let name = '';
+    let sortKey = 0;
+
+    if (monthFilter === 'this_month') {
+      // Group by Week of the month
+      const weekNum = Math.ceil(date.getDate() / 7);
+      key = `W${weekNum}`;
+      name = `Week ${weekNum}`;
+      sortKey = weekNum;
+    } else {
+      // Group by Month
+      key = `${date.getFullYear()}-${date.getMonth()}`;
+      name = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }); // e.g. "Apr 26"
+      sortKey = date.getTime();
+    }
+
+    if (!barChartDataMap.has(key)) {
+      barChartDataMap.set(key, { name, collected: 0, pending: 0, sortKey });
+    }
+
+    const data = barChartDataMap.get(key)!;
+    data.collected += task.paidAmount;
+    data.pending += Math.max(0, task.price - task.paidAmount);
+  });
+
+  const barChartData = Array.from(barChartDataMap.values()).sort((a, b) => a.sortKey - b.sortKey);
 
   const handleUpdatePayment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,9 +199,30 @@ export function Dashboard() {
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-full flex items-center justify-center text-slate-400 text-sm">
-              Bar chart placeholder
-            </div>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={barChartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 12, fill: '#94a3b8' }} 
+                  dy={10}
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 12, fill: '#94a3b8' }}
+                  tickFormatter={(value) => `฿${value >= 1000 ? (value / 1000) + 'k' : value}`}
+                />
+                <Tooltip 
+                  cursor={{ fill: '#f1f5f9' }}
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}
+                  formatter={(value: number) => `฿${value.toLocaleString()}`}
+                />
+                <Bar dataKey="collected" name="Collected" stackId="a" fill="#10b981" />
+                <Bar dataKey="pending" name="Pending" stackId="a" fill="#f97316" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           )}
         </div>
         

@@ -13,25 +13,25 @@
     --bg-app: #f0f9ff;
   }
 
-  .theme-pink {
+  :root.theme-pink {
     --primary: #ec4899;
     --primary-light: #fbcfe8;
     --bg-app: #fdf2f8;
   }
   
-  .theme-green {
+  :root.theme-green {
     --primary: #10b981;
     --primary-light: #a7f3d0;
     --bg-app: #ecfdf5;
   }
   
-  .theme-purple {
+  :root.theme-purple {
     --primary: #8b5cf6;
     --primary-light: #ddd6fe;
     --bg-app: #f5f3ff;
   }
   
-  .theme-orange {
+  :root.theme-orange {
     --primary: #f97316;
     --primary-light: #fed7aa;
     --bg-app: #fff7ed;
