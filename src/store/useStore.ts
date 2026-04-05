@@ -16,7 +16,7 @@ export interface Task {
   taskName: string;
   deadline: string; // ISO string
   price: number;
-  deposit: number;
+  paidAmount: number;
   status: TaskStatus;
   categoryId: string;
   createdAt: string;
@@ -46,6 +46,7 @@ interface AppState {
   tasks: Task[];
   addTask: (task: Task) => void;
   updateTaskStatus: (id: string, status: TaskStatus) => void;
+  updateTaskPaidAmount: (id: string, paidAmount: number) => void;
 }
 
 const defaultCategories: Category[] = [
@@ -61,7 +62,7 @@ const mockTasks: Task[] = [
     taskName: 'ออกแบบโลโก้ร้านกาแฟ',
     deadline: new Date(Date.now() + 86400000 * 2).toISOString(), // +2 days
     price: 5000,
-    deposit: 2500,
+    paidAmount: 2500,
     status: 'UPCOMING',
     categoryId: '1',
     createdAt: new Date().toISOString(),
@@ -72,7 +73,7 @@ const mockTasks: Task[] = [
     taskName: 'ตัดต่อคลิป Vlog',
     deadline: new Date(Date.now() + 86400000 * 1).toISOString(), // +1 day
     price: 8000,
-    deposit: 4000,
+    paidAmount: 4000,
     status: 'IN_PROGRESS',
     categoryId: '2',
     createdAt: new Date().toISOString(),
@@ -83,7 +84,7 @@ const mockTasks: Task[] = [
     taskName: 'ทำเว็บ Landing Page',
     deadline: new Date(Date.now() - 86400000 * 1).toISOString(), // -1 day
     price: 15000,
-    deposit: 15000,
+    paidAmount: 15000,
     status: 'SUCCESS',
     categoryId: '3',
     createdAt: new Date().toISOString(),
@@ -113,6 +114,9 @@ export const useStore = create<AppState>()(
       addTask: (task) => set((state) => ({ tasks: [...state.tasks, task] })),
       updateTaskStatus: (id, status) => set((state) => ({
         tasks: state.tasks.map(t => t.id === id ? { ...t, status } : t)
+      })),
+      updateTaskPaidAmount: (id, paidAmount) => set((state) => ({
+        tasks: state.tasks.map(t => t.id === id ? { ...t, paidAmount } : t)
       })),
     }),
     {

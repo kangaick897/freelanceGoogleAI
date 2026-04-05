@@ -1,31 +1,49 @@
 import { useState } from 'react';
-import { useStore } from '@/store/useStore';
-import { motion } from 'framer-motion';
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
+import { useStore, Task } from '@/store/useStore';
+import { motion, AnimatePresence } from 'framer-motion';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { X, CheckCircle2, Plus } from 'lucide-react';
 
 export function Dashboard() {
-  const { tasks, categories } = useStore();
+  const { tasks, categories, updateTaskPaidAmount } = useStore();
   const [chartType, setChartType] = useState<'donut' | 'bar'>('donut');
-  const [monthFilter, setMonthFilter] = useState('all');
+  const [monthFilter, setMonthFilter] = useState('this_month');
+  
+  // Modals state
+  const [showPendingSheet, setShowPendingSheet] = useState(false);
+  const [showCollectSheet, setShowCollectSheet] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [addAmount, setAddAmount] = useState('');
+
+  // Time filtering
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  const isThisMonth = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+  };
 
   // Calculations
-  const totalCollected = tasks.reduce((sum, task) => {
-    if (task.status === 'SUCCESS') return sum + task.price;
-    return sum + task.deposit;
-  }, 0);
+  const filteredTasks = monthFilter === 'this_month' 
+    ? tasks.filter(t => isThisMonth(t.createdAt))
+    : tasks;
 
-  const totalPending = tasks.reduce((sum, task) => {
-    if (task.status !== 'SUCCESS') return sum + (task.price - task.deposit);
-    return sum;
-  }, 0);
+  // Collect: Sum of all paidAmount (filtered by time)
+  const collectedTasks = filteredTasks.filter(t => t.paidAmount > 0);
+  const totalCollected = collectedTasks.reduce((sum, task) => sum + task.paidAmount, 0);
 
-  // Donut Chart Data (by Category)
+  // Pending: All-time pending (price - paidAmount > 0)
+  const pendingTasks = tasks.filter(t => (t.price - t.paidAmount) > 0);
+  const totalPending = pendingTasks.reduce((sum, task) => sum + (task.price - task.paidAmount), 0);
+
+  // Donut Chart Data (by Category based on collected amount)
   const categoryData = categories.map(cat => {
-    const value = tasks
+    const value = collectedTasks
       .filter(t => t.categoryId === cat.id)
-      .reduce((sum, t) => sum + (t.status === 'SUCCESS' ? t.price : t.deposit), 0);
+      .reduce((sum, t) => sum + t.paidAmount, 0);
     
-    // Extract hex color or use default based on tailwind class (simplified for recharts)
     const colorMap: Record<string, string> = {
       'bg-pink-500': '#ec4899',
       'bg-purple-500': '#8b5cf6',
@@ -41,8 +59,26 @@ export function Dashboard() {
     };
   }).filter(d => d.value > 0);
 
-  // Pending List
-  const pendingTasks = tasks.filter(t => t.status !== 'SUCCESS' && (t.price - t.deposit) > 0);
+  const handleUpdatePayment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTask) return;
+    
+    const amountToAdd = Number(addAmount);
+    if (amountToAdd > 0) {
+      const newPaidAmount = Math.min(selectedTask.paidAmount + amountToAdd, selectedTask.price);
+      updateTaskPaidAmount(selectedTask.id, newPaidAmount);
+    }
+    
+    setSelectedTask(null);
+    setAddAmount('');
+  };
+
+  const handleMarkFullyPaid = () => {
+    if (!selectedTask) return;
+    updateTaskPaidAmount(selectedTask.id, selectedTask.price);
+    setSelectedTask(null);
+    setAddAmount('');
+  };
 
   return (
     <motion.div 
@@ -57,21 +93,29 @@ export function Dashboard() {
           onChange={(e) => setMonthFilter(e.target.value)}
           className="glass px-3 py-1.5 rounded-xl text-sm font-medium text-slate-700 outline-none"
         >
-          <option value="all">All Time</option>
           <option value="this_month">This Month</option>
+          <option value="all">All Time</option>
         </select>
       </div>
 
       {/* Financial Summary */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="glass rounded-3xl p-5">
+        <button 
+          onClick={() => setShowCollectSheet(true)}
+          className="glass rounded-3xl p-5 text-left active:scale-95 transition-transform"
+        >
           <p className="text-sm font-medium text-slate-500 mb-1">Collected</p>
           <p className="text-2xl font-bold text-green-500">฿{totalCollected.toLocaleString()}</p>
-        </div>
-        <div className="glass rounded-3xl p-5">
-          <p className="text-sm font-medium text-slate-500 mb-1">Pending</p>
+          <p className="text-xs text-slate-400 mt-1">Tap to view</p>
+        </button>
+        <button 
+          onClick={() => setShowPendingSheet(true)}
+          className="glass rounded-3xl p-5 text-left active:scale-95 transition-transform"
+        >
+          <p className="text-sm font-medium text-slate-500 mb-1">Pending (All)</p>
           <p className="text-2xl font-bold text-orange-500">฿{totalPending.toLocaleString()}</p>
-        </div>
+          <p className="text-xs text-slate-400 mt-1">Tap to view</p>
+        </button>
       </div>
 
       {/* Charts */}
@@ -119,7 +163,7 @@ export function Dashboard() {
             </ResponsiveContainer>
           ) : (
             <div className="h-full flex items-center justify-center text-slate-400 text-sm">
-              Bar chart placeholder (Requires monthly data grouping)
+              Bar chart placeholder
             </div>
           )}
         </div>
@@ -136,31 +180,198 @@ export function Dashboard() {
         )}
       </div>
 
-      {/* Pending List */}
-      <div>
-        <h2 className="text-lg font-bold text-slate-800 mb-4">Pending Payments</h2>
-        {pendingTasks.length === 0 ? (
-          <div className="glass rounded-2xl p-6 text-center text-slate-500">
-            No pending payments. Great job! 🎉
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {pendingTasks.map(task => (
-              <div key={task.id} className="glass rounded-2xl p-4 flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-slate-800">{task.clientName}</h3>
-                  <p className="text-xs text-slate-500">{task.taskName}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-orange-500">
-                    ฿{(task.price - task.deposit).toLocaleString()}
-                  </p>
-                </div>
+      {/* Bottom Sheet: Pending */}
+      <AnimatePresence>
+        {showPendingSheet && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowPendingSheet(false)}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40"
+            />
+            <motion.div 
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed inset-x-0 bottom-0 bg-white/90 backdrop-blur-xl rounded-t-3xl z-50 p-6 max-h-[80vh] overflow-y-auto shadow-2xl"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-slate-800">Pending Payments</h2>
+                <button onClick={() => setShowPendingSheet(false)} className="p-2 bg-slate-100 rounded-full text-slate-500">
+                  <X size={20} />
+                </button>
               </div>
-            ))}
-          </div>
+              
+              {pendingTasks.length === 0 ? (
+                <div className="text-center py-10 text-slate-500">
+                  No pending payments. Great job! 🎉
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {pendingTasks.map(task => (
+                    <button 
+                      key={task.id} 
+                      onClick={() => setSelectedTask(task)}
+                      className="w-full text-left bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm border border-slate-100 active:scale-[0.98] transition-transform"
+                    >
+                      <div>
+                        <h3 className="font-bold text-slate-800">{task.clientName}</h3>
+                        <p className="text-xs text-slate-500">{task.taskName}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-orange-500">
+                          ฿{(task.price - task.paidAmount).toLocaleString()}
+                        </p>
+                        <p className="text-[10px] text-slate-400">Tap to update</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          </>
         )}
-      </div>
+      </AnimatePresence>
+
+      {/* Bottom Sheet: Collected */}
+      <AnimatePresence>
+        {showCollectSheet && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCollectSheet(false)}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40"
+            />
+            <motion.div 
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed inset-x-0 bottom-0 bg-white/90 backdrop-blur-xl rounded-t-3xl z-50 p-6 max-h-[80vh] overflow-y-auto shadow-2xl"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-slate-800">Collected ({monthFilter === 'all' ? 'All Time' : 'This Month'})</h2>
+                <button onClick={() => setShowCollectSheet(false)} className="p-2 bg-slate-100 rounded-full text-slate-500">
+                  <X size={20} />
+                </button>
+              </div>
+              
+              {collectedTasks.length === 0 ? (
+                <div className="text-center py-10 text-slate-500">
+                  No collections yet.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {collectedTasks.map(task => (
+                    <div key={task.id} className="bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm border border-slate-100">
+                      <div>
+                        <h3 className="font-bold text-slate-800">{task.clientName}</h3>
+                        <p className="text-xs text-slate-500">{task.taskName}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-green-500">
+                          ฿{task.paidAmount.toLocaleString()}
+                        </p>
+                        {task.paidAmount < task.price && (
+                          <p className="text-[10px] text-orange-400">Partial payment</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Update Payment Modal */}
+      <AnimatePresence>
+        {selectedTask && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+              onClick={() => setSelectedTask(null)}
+            >
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={e => e.stopPropagation()}
+                className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl"
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-800">Update Payment</h3>
+                    <p className="text-sm text-slate-500">{selectedTask.clientName} - {selectedTask.taskName}</p>
+                  </div>
+                  <button onClick={() => setSelectedTask(null)} className="p-1.5 bg-slate-100 rounded-full text-slate-500">
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="bg-slate-50 rounded-2xl p-4 mb-5">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-slate-500">Total Price:</span>
+                    <span className="font-bold text-slate-800">฿{selectedTask.price.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-slate-500">Paid:</span>
+                    <span className="font-bold text-green-500">฿{selectedTask.paidAmount.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-sm pt-2 border-t border-slate-200 mt-2">
+                    <span className="text-slate-700 font-medium">Pending:</span>
+                    <span className="font-bold text-orange-500">฿{(selectedTask.price - selectedTask.paidAmount).toLocaleString()}</span>
+                  </div>
+                </div>
+
+                <form onSubmit={handleUpdatePayment} className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1.5">Add Payment Amount (฿)</label>
+                    <input 
+                      type="number" 
+                      min="1"
+                      max={selectedTask.price - selectedTask.paidAmount}
+                      value={addAmount}
+                      onChange={e => setAddAmount(e.target.value)}
+                      placeholder={`Max: ${(selectedTask.price - selectedTask.paidAmount).toLocaleString()}`}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                    />
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <button 
+                      type="button"
+                      onClick={handleMarkFullyPaid}
+                      className="flex-1 bg-green-100 hover:bg-green-200 text-green-700 font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+                    >
+                      <CheckCircle2 size={18} />
+                      Fully Paid
+                    </button>
+                    <button 
+                      type="submit"
+                      disabled={!addAmount}
+                      className="flex-1 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Plus size={18} />
+                      Add
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
     </motion.div>
   );
 }

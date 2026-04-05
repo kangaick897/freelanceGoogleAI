@@ -1,24 +1,22 @@
 import { useStore, TaskStatus } from '@/store/useStore';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
-import { Rocket, CheckCircle2, Clock, Calendar } from 'lucide-react';
+import { Rocket, CheckCircle2, Calendar } from 'lucide-react';
 
 export function Tasks() {
-  const { tasks, categories, updateTaskStatus } = useStore();
+  const { tasks, updateTaskStatus } = useStore();
   
-  // Show only incomplete tasks
-  const activeTasks = tasks.filter(t => t.status !== 'SUCCESS')
-    .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime());
-
-  const getCategoryColor = (id: string) => {
-    const cat = categories.find(c => c.id === id);
-    return cat ? cat.color : 'bg-slate-500';
-  };
-
-  const getCategoryName = (id: string) => {
-    const cat = categories.find(c => c.id === id);
-    return cat ? cat.name : 'Uncategorized';
-  };
+  // Show only incomplete tasks and sort them
+  const activeTasks = tasks
+    .filter(t => t.status !== 'SUCCESS')
+    .sort((a, b) => {
+      // 1. IN_PROGRESS tasks come first
+      if (a.status === 'IN_PROGRESS' && b.status !== 'IN_PROGRESS') return -1;
+      if (a.status !== 'IN_PROGRESS' && b.status === 'IN_PROGRESS') return 1;
+      
+      // 2. Then sort by deadline (closest first)
+      return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+    });
 
   return (
     <motion.div 
@@ -33,14 +31,14 @@ export function Tasks() {
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {activeTasks.length === 0 ? (
-          <div className="glass rounded-3xl p-8 text-center flex flex-col items-center">
-            <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4">
-              <CheckCircle2 size={32} />
+          <div className="glass rounded-2xl p-6 text-center flex flex-col items-center">
+            <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-3">
+              <CheckCircle2 size={24} />
             </div>
-            <h3 className="text-lg font-bold text-slate-800 mb-1">All caught up!</h3>
-            <p className="text-slate-500">You have no pending tasks.</p>
+            <h3 className="text-base font-bold text-slate-800 mb-1">All caught up!</h3>
+            <p className="text-sm text-slate-500">You have no pending tasks.</p>
           </div>
         ) : (
           activeTasks.map((task) => (
@@ -49,49 +47,47 @@ export function Tasks() {
               layout
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="glass rounded-3xl p-5 relative overflow-hidden"
+              className={`glass rounded-2xl p-4 relative overflow-hidden border-l-4 ${
+                task.status === 'IN_PROGRESS' ? 'border-l-orange-500' : 'border-l-blue-500'
+              }`}
             >
-              {/* Category Indicator Line */}
-              <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${getCategoryColor(task.categoryId)}`} />
-              
-              <div className="flex justify-between items-start mb-3">
+              <div className="flex justify-between items-start mb-2">
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 block">
-                    {getCategoryName(task.categoryId)}
-                  </span>
-                  <h3 className="text-lg font-bold text-slate-800 leading-tight">{task.taskName}</h3>
-                  <p className="text-sm text-slate-500 mt-0.5">{task.clientName}</p>
+                  <h3 className="text-base font-bold text-slate-800 leading-tight">{task.taskName}</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">{task.clientName}</p>
                 </div>
-                <div className="text-right">
-                  <div className="flex items-center text-xs font-medium text-slate-500 bg-white/50 px-2 py-1 rounded-lg">
-                    <Calendar size={12} className="mr-1" />
+                <div className="text-right shrink-0 ml-2">
+                  <div className={`flex items-center text-[10px] font-bold px-2 py-1 rounded-md ${
+                    task.status === 'IN_PROGRESS' ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-500'
+                  }`}>
+                    <Calendar size={10} className="mr-1" />
                     {format(new Date(task.deadline), 'dd MMM')}
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-200/50">
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
                 <div>
-                  <p className="text-xs text-slate-500 font-medium">Total / Deposit</p>
-                  <p className="text-sm font-bold text-slate-800">
-                    ฿{task.price.toLocaleString()} <span className="text-slate-400 font-normal">/ ฿{task.deposit.toLocaleString()}</span>
+                  <p className="text-[10px] text-slate-400 font-medium">Total / Paid</p>
+                  <p className="text-xs font-bold text-slate-800">
+                    ฿{task.price.toLocaleString()} <span className="text-slate-400 font-normal">/ ฿{task.paidAmount.toLocaleString()}</span>
                   </p>
                 </div>
 
                 {task.status === 'UPCOMING' ? (
                   <button 
                     onClick={() => updateTaskStatus(task.id, 'IN_PROGRESS')}
-                    className="flex items-center gap-1.5 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm shadow-blue-500/20 active:scale-95"
+                    className="flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors active:scale-95"
                   >
-                    <Rocket size={16} />
+                    <Rocket size={14} />
                     เริ่มงาน
                   </button>
                 ) : (
                   <button 
                     onClick={() => updateTaskStatus(task.id, 'SUCCESS')}
-                    className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm shadow-green-500/20 active:scale-95"
+                    className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm shadow-green-500/20 active:scale-95"
                   >
-                    <CheckCircle2 size={16} />
+                    <CheckCircle2 size={14} />
                     ปิดงาน
                   </button>
                 )}

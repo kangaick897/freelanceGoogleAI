@@ -13,7 +13,7 @@ export function Add() {
     deadline: '',
     price: '',
     hasDeposit: false,
-    deposit: '',
+    paidAmount: '',
     categoryId: categories[0]?.id || '',
   });
 
@@ -26,7 +26,7 @@ export function Add() {
       taskName: formData.taskName,
       deadline: new Date(formData.deadline).toISOString(),
       price: Number(formData.price),
-      deposit: formData.hasDeposit ? Number(formData.deposit) : 0,
+      paidAmount: formData.hasDeposit ? Number(formData.paidAmount) : 0,
       status: 'UPCOMING' as const,
       categoryId: formData.categoryId,
       createdAt: new Date().toISOString(),
@@ -43,7 +43,7 @@ export function Add() {
         deadline: '',
         price: '',
         hasDeposit: false,
-        deposit: '',
+        paidAmount: '',
         categoryId: categories[0]?.id || '',
       });
     }, 2000);
@@ -159,13 +159,13 @@ export function Add() {
             animate={{ opacity: 1, height: 'auto' }}
             className="space-y-1.5"
           >
-            <label className="text-sm font-bold text-slate-700">ยอดมัดจำ (บาท)</label>
+            <label className="text-sm font-bold text-slate-700">ยอดที่ชำระแล้ว (บาท)</label>
             <input 
               required={formData.hasDeposit}
               type="number" 
               min="0"
-              value={formData.deposit}
-              onChange={e => setFormData({...formData, deposit: e.target.value})}
+              value={formData.paidAmount}
+              onChange={e => setFormData({...formData, paidAmount: e.target.value})}
               className="w-full bg-white/50 border border-white/60 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               placeholder="0"
             />
