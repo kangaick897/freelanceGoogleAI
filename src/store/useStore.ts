@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { Session } from '@supabase/supabase-js';
 
 export type TaskStatus = 'UPCOMING' | 'IN_PROGRESS' | 'SUCCESS';
 
@@ -24,10 +25,15 @@ export interface Task {
 export type ThemeColor = 'blue' | 'pink' | 'green' | 'purple' | 'orange';
 
 interface AppState {
+  session: Session | null;
+  setSession: (session: Session | null) => void;
+
   theme: ThemeColor;
   setTheme: (theme: ThemeColor) => void;
   
   user: {
+    id?: string;
+    email?: string;
     name: string;
     avatarUrl: string;
   };
@@ -87,6 +93,9 @@ const mockTasks: Task[] = [
 export const useStore = create<AppState>()(
   persist(
     (set) => ({
+      session: null,
+      setSession: (session) => set({ session }),
+
       theme: 'blue',
       setTheme: (theme) => set({ theme }),
       
@@ -108,6 +117,8 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'freelance-storage',
+      partialize: (state) => ({ theme: state.theme, user: state.user }), // Only persist theme and user preferences locally
     }
   )
 );
+

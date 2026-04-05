@@ -1,6 +1,7 @@
 import { useStore, ThemeColor } from '@/store/useStore';
 import { motion } from 'framer-motion';
 import { Palette, User, LogOut, Tags } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 export function Settings() {
   const { theme, setTheme, user, setUser, categories } = useStore();
@@ -105,7 +106,12 @@ export function Settings() {
       </div>
 
       {/* Logout */}
-      <button className="w-full glass-button rounded-2xl p-4 flex items-center justify-center gap-2 text-red-500 font-bold">
+      <button 
+        onClick={async () => {
+          await supabase.auth.signOut();
+        }}
+        className="w-full glass-button rounded-2xl p-4 flex items-center justify-center gap-2 text-red-500 font-bold"
+      >
         <LogOut size={20} />
         Sign Out
       </button>

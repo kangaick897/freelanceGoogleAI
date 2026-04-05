@@ -1,20 +1,62 @@
 import { useState, useEffect } from 'react';
 import { useStore } from './store/useStore';
+import { supabase } from './lib/supabase';
 import { BottomNav } from './components/BottomNav';
 import { Home } from './pages/Home';
 import { Tasks } from './pages/Tasks';
 import { Add } from './pages/Add';
 import { Dashboard } from './pages/Dashboard';
 import { Settings } from './pages/Settings';
+import { Auth } from './pages/Auth';
+import { Loader2 } from 'lucide-react';
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState('home');
-  const { theme } = useStore();
+  const [isInitializing, setIsInitializing] = useState(true);
+  const { theme, session, setSession, setUser } = useStore();
 
   // Apply theme class to body
   useEffect(() => {
     document.body.className = `theme-${theme}`;
   }, [theme]);
+
+  // Supabase Auth Listener
+  useEffect(() => {
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        setUser({ id: session.user.id, email: session.user.email });
+      }
+      setIsInitializing(false);
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session?.user) {
+        setUser({ id: session.user.id, email: session.user.email });
+      } else {
+        setUser({ id: undefined, email: undefined });
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [setSession, setUser]);
+
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg-app">
+        <Loader2 className="animate-spin text-primary" size={32} />
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <Auth />;
+  }
 
   const renderContent = () => {
     switch (currentTab) {
