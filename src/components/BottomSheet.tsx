@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
 interface BottomSheetProps {
   isOpen: boolean;
@@ -11,7 +12,9 @@ interface BottomSheetProps {
 // Bottom Sheet ที่ใช้ร่วมกันได้ทั้งโปรเจกต์
 // เปิดโดยส่ง isOpen={true} และปิดด้วย onClose
 export function BottomSheet({ isOpen, title, onClose, children }: BottomSheetProps) {
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
@@ -41,6 +44,7 @@ export function BottomSheet({ isOpen, title, onClose, children }: BottomSheetPro
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

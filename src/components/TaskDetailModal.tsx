@@ -2,6 +2,7 @@ import { Task } from '@/store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import { X, Calendar, FileText, MessageCircle } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
 const CHANNEL_EMOJI: Record<string, string> = {
   FB: '💬',
@@ -17,15 +18,15 @@ interface TaskDetailModalProps {
 
 // Modal แสดงรายละเอียดงานแบบเต็ม กดพื้นที่นอกหรือปุ่ม X เพื่อปิด
 export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
-  if (!task) return null;
+  if (typeof document === 'undefined') return null;
 
-  const remaining = task.price - task.paidAmount;
+  const remaining = task ? task.price - task.paidAmount : 0;
   const borderColor =
-    task.status === 'IN_PROGRESS' ? 'border-l-orange-500'
-    : task.status === 'SUCCESS' ? 'border-l-green-500'
+    task?.status === 'IN_PROGRESS' ? 'border-l-orange-500'
+    : task?.status === 'SUCCESS' ? 'border-l-green-500'
     : 'border-l-blue-500';
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {task && (
         <motion.div
@@ -144,6 +145,7 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
