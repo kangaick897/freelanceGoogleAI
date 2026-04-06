@@ -14,7 +14,9 @@ export interface Category {
 export interface Task {
   id: string;
   clientName: string;
+  contactChannel?: string;
   taskName: string;
+  taskDetails?: string;
   deadline: string; // ISO string
   price: number;
   paidAmount: number;
@@ -123,6 +125,8 @@ export const useStore = create<AppState>()(
             user_id: userId,
             task_name: task.taskName,
             client_name: task.clientName,
+            contact_channel: task.contactChannel ?? null,
+            task_details: task.taskDetails ?? null,
             deadline: task.deadline,
             price: task.price,
             paid_amount: task.paidAmount,
@@ -202,6 +206,8 @@ export const useStore = create<AppState>()(
                 id: t.id,
                 taskName: t.task_name,
                 clientName: t.client_name,
+                contactChannel: t.contact_channel ?? undefined,
+                taskDetails: t.task_details ?? undefined,
                 deadline: t.deadline,
                 price: Number(t.price),
                 paidAmount: Number(t.paid_amount),

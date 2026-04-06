@@ -3,13 +3,17 @@ import { useStore } from '@/store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2 } from 'lucide-react';
 
+const CONTACT_CHANNELS = ['FB', 'IG', 'LINE', 'GMAIL'] as const;
+
 export function Add() {
   const { categories, addTask } = useStore();
   const [isSuccess, setIsSuccess] = useState(false);
   
   const [formData, setFormData] = useState({
     clientName: '',
+    contactChannel: 'FB',
     taskName: '',
+    taskDetails: '',
     deadline: '',
     price: '',
     hasDeposit: false,
@@ -33,7 +37,9 @@ export function Add() {
     const newTask = {
       id: createUUID(),
       clientName: formData.clientName,
+      contactChannel: formData.contactChannel,
       taskName: formData.taskName,
+      taskDetails: formData.taskDetails || undefined,
       deadline: new Date(formData.deadline).toISOString(),
       price: Number(formData.price),
       paidAmount: formData.hasDeposit ? Number(formData.paidAmount) : 0,
@@ -49,7 +55,9 @@ export function Add() {
       setIsSuccess(false);
       setFormData({
         clientName: '',
+        contactChannel: 'FB',
         taskName: '',
+        taskDetails: '',
         deadline: '',
         price: '',
         hasDeposit: false,
@@ -69,6 +77,7 @@ export function Add() {
 
       <form onSubmit={handleSubmit} className="glass rounded-3xl p-6 space-y-5 relative z-10">
         
+        {/* Client Name */}
         <div className="space-y-1.5">
           <label className="text-sm font-bold text-slate-700">ชื่อลูกค้า</label>
           <input 
@@ -81,6 +90,21 @@ export function Add() {
           />
         </div>
 
+        {/* Contact Channel */}
+        <div className="space-y-1.5">
+          <label className="text-sm font-bold text-slate-700">ช่องทางการติดต่อ</label>
+          <select 
+            value={formData.contactChannel}
+            onChange={e => setFormData({...formData, contactChannel: e.target.value})}
+            className="w-full bg-white/50 border border-white/60 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none"
+          >
+            {CONTACT_CHANNELS.map(ch => (
+              <option key={ch} value={ch}>{ch}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Task Name */}
         <div className="space-y-1.5">
           <label className="text-sm font-bold text-slate-700">ชื่องาน</label>
           <input 
@@ -93,6 +117,19 @@ export function Add() {
           />
         </div>
 
+        {/* Task Details */}
+        <div className="space-y-1.5">
+          <label className="text-sm font-bold text-slate-700">รายละเอียดงาน <span className="text-slate-400 font-normal">(ไม่บังคับ)</span></label>
+          <textarea 
+            rows={3}
+            value={formData.taskDetails}
+            onChange={e => setFormData({...formData, taskDetails: e.target.value})}
+            className="w-full bg-white/50 border border-white/60 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/50 transition-all resize-none"
+            placeholder="เช่น ออกแบบโลโก้ โทนสีฟ้า-ขาว พร้อมไฟล์ AI"
+          />
+        </div>
+
+        {/* Category */}
         <div className="space-y-1.5">
           <label className="text-sm font-bold text-slate-700">หมวดหมู่งาน</label>
           <select 
@@ -106,6 +143,7 @@ export function Add() {
           </select>
         </div>
 
+        {/* Deadline */}
         <div className="space-y-1.5">
           <label className="text-sm font-bold text-slate-700">กำหนดส่ง (Deadline)</label>
           <input 
@@ -117,6 +155,7 @@ export function Add() {
           />
         </div>
 
+        {/* Price */}
         <div className="space-y-1.5">
           <label className="text-sm font-bold text-slate-700">ราคาตกลง (บาท)</label>
           <input 
@@ -130,6 +169,7 @@ export function Add() {
           />
         </div>
 
+        {/* Deposit Checkbox */}
         <div className="pt-2">
           <label className="flex items-center gap-3 cursor-pointer">
             <div className="relative flex items-center">
@@ -147,6 +187,7 @@ export function Add() {
           </label>
         </div>
 
+        {/* Deposit Amount */}
         {formData.hasDeposit && (
           <motion.div 
             initial={{ opacity: 0, height: 0 }}
@@ -174,6 +215,7 @@ export function Add() {
         </button>
       </form>
 
+      {/* Success Modal */}
       <AnimatePresence>
         {isSuccess && (
           <motion.div 
