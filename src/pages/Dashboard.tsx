@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useStore, Task } from '@/store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from 'recharts';
-import { X, CheckCircle2, Plus } from 'lucide-react';
-import { BottomSheet } from '@/components/BottomSheet';
+import { CollectedPage } from './CollectedPage';
+import { PendingPage } from './PendingPage';
 
 export function Dashboard() {
   const { tasks, categories, updateTaskPaidAmount } = useStore();
@@ -12,11 +12,7 @@ export function Dashboard() {
   const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const [monthFilter, setMonthFilter] = useState(currentMonthStr);
 
-  // Modal state
-  const [showPendingSheet, setShowPendingSheet] = useState(false);
-  const [showCollectSheet, setShowCollectSheet] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [addAmount, setAddAmount] = useState('');
+  const [view, setView] = useState<'main' | 'collected' | 'pending'>('main');
 
   // สร้างรายการเดือนที่มีงาน
   const monthsSet = new Set([currentMonthStr, ...tasks.map(t => {
@@ -76,24 +72,13 @@ export function Dashboard() {
   });
   const barChartData = Array.from(barChartDataMap.values()).sort((a, b) => a.sortKey - b.sortKey);
 
-  // อัปเดตการชำระเงิน
-  const handleUpdatePayment = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedTask) return;
-    const amountToAdd = Number(addAmount);
-    if (amountToAdd > 0) {
-      updateTaskPaidAmount(selectedTask.id, Math.min(selectedTask.paidAmount + amountToAdd, selectedTask.price));
-    }
-    setSelectedTask(null);
-    setAddAmount('');
-  };
-
-  const handleMarkFullyPaid = () => {
-    if (!selectedTask) return;
-    updateTaskPaidAmount(selectedTask.id, selectedTask.price);
-    setSelectedTask(null);
-    setAddAmount('');
-  };
+  if (view === 'collected') {
+    return <CollectedPage onBack={() => setView('main')} />;
+  }
+  
+  if (view === 'pending') {
+    return <PendingPage onBack={() => setView('main')} />;
+  }
 
   return (
     <motion.div
@@ -123,12 +108,12 @@ export function Dashboard() {
 
       {/* Financial Summary */}
       <div className="grid grid-cols-2 gap-4">
-        <button onClick={() => setShowCollectSheet(true)} className="glass rounded-3xl p-5 text-left active:scale-95 transition-transform">
+        <button onClick={() => setView('collected')} className="glass rounded-3xl p-5 text-left active:scale-95 transition-transform">
           <p className="text-sm font-medium text-slate-500 mb-1">Collected</p>
           <p className="text-2xl font-bold text-green-500">฿{totalCollected.toLocaleString()}</p>
           <p className="text-xs text-slate-400 mt-1">Tap to view</p>
         </button>
-        <button onClick={() => setShowPendingSheet(true)} className="glass rounded-3xl p-5 text-left active:scale-95 transition-transform">
+        <button onClick={() => setView('pending')} className="glass rounded-3xl p-5 text-left active:scale-95 transition-transform">
           <p className="text-sm font-medium text-slate-500 mb-1">Pending (All)</p>
           <p className="text-2xl font-bold text-orange-500">฿{totalPending.toLocaleString()}</p>
           <p className="text-xs text-slate-400 mt-1">Tap to view</p>
@@ -182,117 +167,7 @@ export function Dashboard() {
         )}
       </div>
 
-      {/* Bottom Sheet: Pending — ใช้ BottomSheet component จาก src/components/BottomSheet.tsx */}
-      <BottomSheet isOpen={showPendingSheet} title="Pending Payments" onClose={() => setShowPendingSheet(false)}>
-        {pendingTasks.length === 0 ? (
-          <div className="text-center py-10 text-slate-500">No pending payments. Great job! 🎉</div>
-        ) : (
-          <div className="space-y-3">
-            {pendingTasks.map(task => (
-              <button
-                key={task.id}
-                onClick={() => setSelectedTask(task)}
-                className="w-full text-left bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm border border-slate-100 active:scale-[0.98] transition-transform"
-              >
-                <div>
-                  <h3 className="font-bold text-slate-800">{task.clientName}</h3>
-                  <p className="text-xs text-slate-500">{task.taskName}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-orange-500">฿{(task.price - task.paidAmount).toLocaleString()}</p>
-                  <p className="text-[10px] text-slate-400">Tap to update</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-      </BottomSheet>
-
-      {/* Bottom Sheet: Collected */}
-      <BottomSheet isOpen={showCollectSheet} title="Collected" onClose={() => setShowCollectSheet(false)}>
-        {collectedTasks.length === 0 ? (
-          <div className="text-center py-10 text-slate-500">No collections yet.</div>
-        ) : (
-          <div className="space-y-3">
-            {collectedTasks.map(task => (
-              <div key={task.id} className="bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm border border-slate-100">
-                <div>
-                  <h3 className="font-bold text-slate-800">{task.clientName}</h3>
-                  <p className="text-xs text-slate-500">{task.taskName}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-green-500">฿{task.paidAmount.toLocaleString()}</p>
-                  {task.paidAmount < task.price && <p className="text-[10px] text-orange-400">Partial payment</p>}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </BottomSheet>
-
-      {/* Update Payment Modal */}
-      <AnimatePresence>
-        {selectedTask && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4"
-            onClick={() => setSelectedTask(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-              onClick={e => e.stopPropagation()}
-              className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl"
-            >
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-800">Update Payment</h3>
-                  <p className="text-sm text-slate-500">{selectedTask.clientName} - {selectedTask.taskName}</p>
-                </div>
-                <button onClick={() => setSelectedTask(null)} className="p-1.5 bg-slate-100 rounded-full text-slate-500">
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="bg-slate-50 rounded-2xl p-4 mb-5">
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-slate-500">Total Price:</span>
-                  <span className="font-bold text-slate-800">฿{selectedTask.price.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-slate-500">Paid:</span>
-                  <span className="font-bold text-green-500">฿{selectedTask.paidAmount.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-sm pt-2 border-t border-slate-200 mt-2">
-                  <span className="text-slate-700 font-medium">Pending:</span>
-                  <span className="font-bold text-orange-500">฿{(selectedTask.price - selectedTask.paidAmount).toLocaleString()}</span>
-                </div>
-              </div>
-
-              <form onSubmit={handleUpdatePayment} className="space-y-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1.5">Add Payment Amount (฿)</label>
-                  <input
-                    type="number" min="1" max={selectedTask.price - selectedTask.paidAmount}
-                    value={addAmount} onChange={e => setAddAmount(e.target.value)}
-                    placeholder={`Max: ${(selectedTask.price - selectedTask.paidAmount).toLocaleString()}`}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                  />
-                </div>
-                <div className="flex gap-3">
-                  <button type="button" onClick={handleMarkFullyPaid}
-                    className="flex-1 bg-green-100 hover:bg-green-200 text-green-700 font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
-                    <CheckCircle2 size={18} /> Fully Paid
-                  </button>
-                  <button type="submit" disabled={!addAmount}
-                    className="flex-1 bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
-                    <Plus size={18} /> Add
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* The BottomSheets and Modals have been replaced by Full Pages */}
     </motion.div>
   );
 }

@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { useStore, ThemeColor } from '@/store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Palette, User, LogOut, Tags, Plus, X } from 'lucide-react';
+import { Palette, User, LogOut, Tags, Plus, X, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { createPortal } from 'react-dom';
 
 export function Settings() {
-  const { theme, setTheme, user, setUser, categories, addCategory, removeCategory } = useStore();
+  const { theme, setTheme, user, setUser, categories, addCategory, removeCategory, resetUserData } = useStore();
   
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryColor, setNewCategoryColor] = useState('bg-blue-500');
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const themes: { id: ThemeColor; color: string; name: string }[] = [
     { id: 'blue', color: 'bg-blue-500', name: 'Blue' },
@@ -179,6 +181,21 @@ export function Settings() {
         </div>
       </div>
 
+      {/* Danger Zone */}
+      <div className="glass rounded-3xl p-6 border border-red-100">
+        <div className="flex items-center gap-2 text-red-500 font-bold mb-3">
+          <Trash2 size={20} />
+          Danger Zone
+        </div>
+        <p className="text-sm text-slate-500 mb-4">Permanently delete all your tasks and financial history. This action cannot be undone.</p>
+        <button
+          onClick={() => setShowResetConfirm(true)}
+          className="w-full py-3 rounded-xl text-sm font-bold text-red-500 border-2 border-red-200 hover:bg-red-50 active:scale-[0.98] transition-all"
+        >
+          Reset All Data
+        </button>
+      </div>
+
       {/* Logout */}
       <button 
         onClick={async () => {
@@ -189,6 +206,49 @@ export function Settings() {
         <LogOut size={20} />
         Sign Out
       </button>
+
+      {/* Reset Confirmation Dialog */}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {showResetConfirm && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+              onClick={() => setShowResetConfirm(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+                onClick={e => e.stopPropagation()}
+                className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl"
+              >
+                <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mb-4 mx-auto">
+                  <Trash2 size={24} className="text-red-500" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-800 text-center mb-2">Reset All Data?</h3>
+                <p className="text-sm text-slate-500 text-center mb-6">All tasks and payment history will be permanently deleted. This cannot be undone.</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowResetConfirm(false)}
+                    className="flex-1 bg-slate-100 text-slate-700 font-bold py-3.5 rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      await resetUserData();
+                      setShowResetConfirm(false);
+                    }}
+                    className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3.5 rounded-xl transition-colors"
+                  >
+                    Delete All
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </motion.div>
   );
 }

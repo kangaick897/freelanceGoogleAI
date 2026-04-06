@@ -2,9 +2,16 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import { fetchTasks, insertTask, patchTaskStatus, patchTaskPaidAmount } from '@/services/taskService';
+import { fetchTasks, insertTask, patchTaskStatus, patchTaskPaidAmount, fetchPayments, insertPaymentRecord, deleteAllUserData } from '@/services/taskService';
 
 export type TaskStatus = 'UPCOMING' | 'IN_PROGRESS' | 'SUCCESS';
+
+export interface Payment {
+  id: string;
+  taskId: string;
+  amount: number;
+  paymentDate: string;
+}
 
 export interface Category {
   id: string;
@@ -48,12 +55,14 @@ interface AppState {
   removeCategory: (id: string) => Promise<void>;
 
   tasks: Task[];
+  payments: Payment[];
   addTask: (task: Task) => Promise<void>;
   updateTaskStatus: (id: string, status: TaskStatus) => Promise<void>;
-  updateTaskPaidAmount: (id: string, paidAmount: number) => Promise<void>;
+  addPaymentToTask: (taskId: string, amount: number) => Promise<void>;
 
   fetchData: () => Promise<void>;
   isDataLoaded: boolean;
+  resetUserData: () => Promise<void>;
 }
 
 const defaultCategories: Category[] = [
@@ -116,11 +125,25 @@ export const useStore = create<AppState>()(
         }
       },
 
+      payments: [],
       tasks: [],
       addTask: async (task) => {
-        set((state) => ({ tasks: [...state.tasks, task] }));
+        // If task has initial deposit, create a payment record for it too
+        const initialPayment: Payment | null = task.paidAmount > 0 ? {
+          id: crypto.randomUUID(),
+          taskId: task.id,
+          amount: task.paidAmount,
+          paymentDate: new Date().toISOString(),
+        } : null;
+
+        set((state) => ({
+          tasks: [...state.tasks, task],
+          payments: initialPayment ? [...state.payments, initialPayment] : state.payments,
+        }));
+
         const userId = get().session?.user.id;
         if (userId) await insertTask(userId, task);
+        // Note: insertTask already handles inserting the payment to DB if paidAmount > 0
       },
       updateTaskStatus: async (id, status) => {
         set((state) => ({
@@ -129,12 +152,31 @@ export const useStore = create<AppState>()(
         const userId = get().session?.user.id;
         if (userId) await patchTaskStatus(id, status);
       },
-      updateTaskPaidAmount: async (id, paidAmount) => {
-        set((state) => ({
-          tasks: state.tasks.map(t => t.id === id ? { ...t, paidAmount } : t)
-        }));
+      addPaymentToTask: async (taskId, amount) => {
+        const paymentId = crypto.randomUUID();
+        const paymentDate = new Date().toISOString();
+        
+        // Update local state directly for fast UI
+        set((state) => {
+          const task = state.tasks.find(t => t.id === taskId);
+          if (!task) return state;
+          
+          return {
+            tasks: state.tasks.map(t => t.id === taskId ? { ...t, paidAmount: t.paidAmount + amount } : t),
+            payments: [...state.payments, { id: paymentId, taskId, amount, paymentDate }]
+          };
+        });
+
         const userId = get().session?.user.id;
-        if (userId) await patchTaskPaidAmount(id, paidAmount);
+        if (userId) {
+          // 1. Insert payment record
+          await insertPaymentRecord({ id: paymentId, taskId, amount, paymentDate });
+          // 2. Sync task paid_amount
+          const task = get().tasks.find(t => t.id === taskId);
+          if (task) {
+            await patchTaskPaidAmount(taskId, task.paidAmount);
+          }
+        }
       },
 
       isDataLoaded: false,
@@ -183,11 +225,25 @@ export const useStore = create<AppState>()(
           const tasks = await fetchTasks(userId);
           set({ tasks });
 
+          // Fetch payments
+          const taskIds = tasks.map(t => t.id);
+          if (taskIds.length > 0) {
+            const payments = await fetchPayments(taskIds);
+            set({ payments });
+          }
+
           set({ isDataLoaded: true });
         } catch (error) {
           console.error('Error fetching data:', error);
         }
-      }
+      },
+
+      resetUserData: async () => {
+        const userId = get().session?.user.id;
+        if (!userId) return;
+        await deleteAllUserData(userId);
+        set({ tasks: [], payments: [] });
+      },
     }),
     {
       name: 'freelance-storage',

@@ -38,3 +38,12 @@ export const tasks = pgTable('tasks', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+// Table: payments (ประวัติการรับเงิน)
+export const payments = pgTable('payments', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'cascade' }).notNull(),
+  amount: numeric('amount').notNull(),
+  paymentDate: timestamp('payment_date').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
