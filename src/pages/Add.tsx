@@ -42,7 +42,8 @@ export function Add() {
       taskDetails: formData.taskDetails || undefined,
       deadline: new Date(formData.deadline).toISOString(),
       price: Number(formData.price),
-      paidAmount: formData.hasDeposit ? Number(formData.paidAmount) : 0,
+      // No deposit = fully paid upfront. Has deposit = partial amount entered.
+      paidAmount: formData.hasDeposit ? Number(formData.paidAmount) : Number(formData.price),
       status: 'UPCOMING' as const,
       categoryId: formData.categoryId,
       createdAt: new Date().toISOString(),
@@ -183,7 +184,7 @@ export function Add() {
                 <CheckCircle2 size={16} className="text-white opacity-0 peer-checked:opacity-100" />
               </div>
             </div>
-            <span className="text-sm font-bold text-slate-700">มีการรับมัดจำ</span>
+            <span className="text-sm font-bold text-slate-700">ยังไม่ได้รับเงินเต็มจำนวน (มีมัดจำ)</span>
           </label>
         </div>
 
@@ -194,7 +195,7 @@ export function Add() {
             animate={{ opacity: 1, height: 'auto' }}
             className="space-y-1.5"
           >
-            <label className="text-sm font-bold text-slate-700">ยอดที่ชำระแล้ว (บาท)</label>
+            <label className="text-sm font-bold text-slate-700">มัดจำที่รับมาแล้ว (บาท) <span className="text-slate-400 font-normal">(ยอดที่เหลือจะเป็น Pending)</span></label>
             <input 
               required={formData.hasDeposit}
               type="number" 

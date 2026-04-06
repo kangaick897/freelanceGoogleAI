@@ -22,26 +22,34 @@ export default function App() {
 
   // Supabase Auth Listener
   useEffect(() => {
+    let initialized = false;
+
     // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
         setUser({ id: session.user.id, email: session.user.email });
         useStore.getState().fetchData();
+        initialized = true;
       }
       setIsInitializing(false);
     });
 
-    // Listen for auth changes
+    // Listen for auth changes (sign in, sign out, token refresh)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session?.user) {
         setUser({ id: session.user.id, email: session.user.email });
-        useStore.getState().fetchData();
+        // Only call fetchData if getSession hasn't already done so
+        if (!initialized) {
+          initialized = true;
+          useStore.getState().fetchData();
+        }
       } else {
         setUser({ id: undefined, email: undefined });
+        initialized = false;
       }
     });
 
