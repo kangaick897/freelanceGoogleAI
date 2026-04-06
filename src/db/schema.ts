@@ -32,7 +32,9 @@ export const tasks = pgTable('tasks', {
   paidAmount: numeric('paid_amount').default('0').notNull(),
   status: statusEnum('status').default('UPCOMING').notNull(),
   categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
-  notes: text('notes'), // สำหรับจดรายละเอียดเพิ่มเติมหรือลิงก์บรีฟงาน
+  contactChannel: text('contact_channel'),
+  taskDetails: text('task_details'),
+  notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

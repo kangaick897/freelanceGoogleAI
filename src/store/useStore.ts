@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { fetchTasks, insertTask, patchTaskStatus, patchTaskPaidAmount } from '@/services/taskService';
 
 export type TaskStatus = 'UPCOMING' | 'IN_PROGRESS' | 'SUCCESS';
 
@@ -119,41 +120,21 @@ export const useStore = create<AppState>()(
       addTask: async (task) => {
         set((state) => ({ tasks: [...state.tasks, task] }));
         const userId = get().session?.user.id;
-        if (userId) {
-          const { error } = await supabase.from('tasks').insert({
-            id: task.id,
-            user_id: userId,
-            task_name: task.taskName,
-            client_name: task.clientName,
-            contact_channel: task.contactChannel ?? null,
-            task_details: task.taskDetails ?? null,
-            deadline: task.deadline,
-            price: task.price,
-            paid_amount: task.paidAmount,
-            status: task.status,
-            category_id: task.categoryId,
-            created_at: task.createdAt
-          });
-          if (error) console.error('Error inserting task:', error);
-        }
+        if (userId) await insertTask(userId, task);
       },
       updateTaskStatus: async (id, status) => {
         set((state) => ({
           tasks: state.tasks.map(t => t.id === id ? { ...t, status } : t)
         }));
         const userId = get().session?.user.id;
-        if (userId) {
-          await supabase.from('tasks').update({ status }).eq('id', id);
-        }
+        if (userId) await patchTaskStatus(id, status);
       },
       updateTaskPaidAmount: async (id, paidAmount) => {
         set((state) => ({
           tasks: state.tasks.map(t => t.id === id ? { ...t, paidAmount } : t)
         }));
         const userId = get().session?.user.id;
-        if (userId) {
-          await supabase.from('tasks').update({ paid_amount: paidAmount }).eq('id', id);
-        }
+        if (userId) await patchTaskPaidAmount(id, paidAmount);
       },
 
       isDataLoaded: false,
@@ -199,24 +180,8 @@ export const useStore = create<AppState>()(
           }
 
           // Fetch tasks
-          const { data: tasksData } = await supabase.from('tasks').select('*').eq('user_id', userId);
-          if (tasksData) {
-            set({
-              tasks: tasksData.map(t => ({
-                id: t.id,
-                taskName: t.task_name,
-                clientName: t.client_name,
-                contactChannel: t.contact_channel ?? undefined,
-                taskDetails: t.task_details ?? undefined,
-                deadline: t.deadline,
-                price: Number(t.price),
-                paidAmount: Number(t.paid_amount),
-                status: t.status as TaskStatus,
-                categoryId: t.category_id,
-                createdAt: t.created_at
-              }))
-            });
-          }
+          const tasks = await fetchTasks(userId);
+          set({ tasks });
 
           set({ isDataLoaded: true });
         } catch (error) {

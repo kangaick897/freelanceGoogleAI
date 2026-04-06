@@ -6,7 +6,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-k
 // Ensure the URL is a valid HTTP/HTTPS URL to prevent app crashes
 if (supabaseUrl.startsWith('postgresql://')) {
   const match = supabaseUrl.match(/postgres\.([^:]+):/);
-  supabaseUrl = match && match[1] ? `https://${match[1]}.supabase.co` : 'https://duwcpxxqlbqvqyjakuik.supabase.co';
+  supabaseUrl = match && match[1] ? `https://${match[1]}.supabase.co` : '';
 } else if (!supabaseUrl.startsWith('http://') && !supabaseUrl.startsWith('https://')) {
   supabaseUrl = 'https://placeholder-project.supabase.co';
 }
